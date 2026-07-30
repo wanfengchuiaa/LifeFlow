@@ -66,7 +66,7 @@ async function submit() {
     } else if (kind.value === 'budget') {
       await store.addBudget({ month: form.month, categoryId: form.budgetCategoryId || null, amount: positive(form.budgetAmount, '预算') })
     }
-    notify('已保存到此设备')
+  notify('已保存到本机')
     store.closeComposer()
   } catch (value) {
     error.value = value instanceof Error ? value.message : '保存失败，请检查输入'

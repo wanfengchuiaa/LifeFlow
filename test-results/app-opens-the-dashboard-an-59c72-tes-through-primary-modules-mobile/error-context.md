@@ -7,7 +7,7 @@
 # Test info
 
 - Name: app.spec.ts >> opens the dashboard and navigates through primary modules
-- Location: tests\e2e\app.spec.ts:3:1
+- Location: tests\e2e\app.spec.ts:13:1
 
 # Error details
 

@@ -7,7 +7,7 @@
 # Test info
 
 - Name: app.spec.ts >> creates a task and keeps it after reload
-- Location: tests\e2e\app.spec.ts:12:1
+- Location: tests\e2e\app.spec.ts:23:1
 
 # Error details
 

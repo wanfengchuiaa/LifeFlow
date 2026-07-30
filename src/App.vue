@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { Activity, CalendarDays, CheckSquare2, CircleDollarSign, CloudOff, HeartPulse, Home, Plus, Settings, Utensils, Weight, X, ReceiptText, Timer, CalendarPlus, Sparkles } from 'lucide-vue-next'
+import { gsap } from 'gsap'
 import { useLifeStore } from '@/stores/life'
 import QuickAddModal from '@/components/QuickAddModal.vue'
-import LoginView from '@/components/LoginView.vue'
 
 const store = useLifeStore()
 const route = useRoute()
@@ -12,6 +12,7 @@ const quickOpen = ref(false)
 const online = ref(navigator.onLine)
 const toast = ref('')
 let toastTimer = 0
+let pageMotion: ReturnType<typeof gsap.matchMedia> | null = null
 
 const nav = [
   { to: '/', label: '首页', icon: Home },
@@ -41,11 +42,37 @@ function openQuick(kind: typeof quickItems[number]['kind']) {
   quickOpen.value = false
   store.openComposer(kind)
 }
-function onLoggedIn(user: { id: string; username: string; role: string }) {
-  store.user = user
-  store.authenticated = true
-  store.refresh()
+async function animateCurrentPage() {
+  await nextTick()
+  const sections = document.querySelectorAll<HTMLElement>('.page-content > *')
+  if (!sections.length) return
+
+  pageMotion?.revert()
+  pageMotion = gsap.matchMedia()
+  pageMotion.add('(prefers-reduced-motion: no-preference)', () => {
+    gsap.fromTo(
+      sections,
+      { autoAlpha: 0, y: 12 },
+      {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.48,
+        stagger: 0.045,
+        ease: 'power2.out',
+        overwrite: true,
+        clearProps: 'transform,opacity,visibility'
+      }
+    )
+  })
 }
+
+watch(
+  [() => route.fullPath, () => store.ready],
+  ([, ready]) => {
+    if (ready) void animateCurrentPage()
+  },
+  { flush: 'post' }
+)
 
 onMounted(() => {
   store.init()
@@ -54,6 +81,7 @@ onMounted(() => {
   window.addEventListener('lifeflow:toast', showToast)
 })
 onBeforeUnmount(() => {
+  pageMotion?.revert()
   window.removeEventListener('online', updateOnline)
   window.removeEventListener('offline', updateOnline)
   window.removeEventListener('lifeflow:toast', showToast)
@@ -62,7 +90,8 @@ onBeforeUnmount(() => {
 
 <template>
   <!-- <LoginView v-if="!store.authenticated" @logged-in="onLoggedIn" /> -->
-  <div  class="app-shell">
+  <!-- <div v-else class="app-shell"> -->
+  <div class="app-shell">
     <aside class="sidebar">
       <RouterLink class="brand" to="/" aria-label="LifeFlow 首页">
         <span class="brand-mark"><Activity :size="22" /></span>
@@ -77,7 +106,7 @@ onBeforeUnmount(() => {
       </nav>
       <div class="side-bottom">
         <RouterLink to="/settings"><Settings :size="20" /><span>设置与数据</span></RouterLink>
-        <div class="local-badge"><span class="status-dot"></span>数据已同步到服务器</div>
+        <div class="local-badge"><span class="status-dot"></span>数据保存在本机</div>
       </div>
     </aside>
 
@@ -90,7 +119,7 @@ onBeforeUnmount(() => {
         </div>
         <RouterLink to="/settings" class="icon-button settings-button" title="设置" aria-label="打开设置"><Settings :size="20" /></RouterLink>
       </header>
-      <div v-if="!online" class="offline-banner"><CloudOff :size="16" /> 当前离线，所有记录仍会保存在此设备</div>
+      <div v-if="!online" class="offline-banner"><CloudOff :size="16" /> 当前离线，数据仍会保存在本机</div>
 
       <main class="page-wrap">
         <div v-if="!store.ready" class="loading-state"><span class="spinner"></span><p>正在准备你的生活面板…</p></div>

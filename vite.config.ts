@@ -13,8 +13,8 @@ export default defineConfig({
         name: 'LifeFlow',
         short_name: 'LifeFlow',
         description: '个人健康、任务、财务与时间管理',
-        theme_color: '#1e9b68',
-        background_color: '#f5f7f6',
+        theme_color: '#101915',
+        background_color: '#edf1ef',
         display: 'standalone',
         start_url: '/',
         icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }]
@@ -23,5 +23,5 @@ export default defineConfig({
     })
   ],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  server: { proxy: { '/api': 'http://localhost:8080' } }
+  server: { host: true, proxy: { '/api': 'http://localhost:8080' } }
 })

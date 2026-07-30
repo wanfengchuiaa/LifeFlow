@@ -28,6 +28,49 @@ export interface FortuneAnalysis {
   generatedAt: string
 }
 
+export interface AstroSnapshot {
+  astroid: number
+  astroname: string
+  today: string
+  tomorrow: string
+  week: string
+  month: string
+  year: string
+  summary: string
+  love: string
+  career: string
+  money: string
+  health: string
+  color: string
+  number: string
+}
+
+export interface HuangliAnalysis {
+  year: string
+  month: string
+  day: string
+  yangli: string
+  nongli: string
+  star: string
+  taishen: string
+  wuxing: string
+  chong: string
+  sha: string
+  shengxiao: string
+  jiri: string
+  zhiri: string
+  jishenyiyi: string
+  caishen: string
+  xishen: string
+  fushen: string
+  suici: string
+  yi: string[]
+  ji: string[]
+  week: string
+  emonth: string
+  eweek: string
+}
+
 const signs: Array<{ name: ZodiacSign; month: number; day: number }> = [
   { name: '摩羯座', month: 1, day: 1 }, { name: '水瓶座', month: 1, day: 20 }, { name: '双鱼座', month: 2, day: 19 },
   { name: '白羊座', month: 3, day: 21 }, { name: '金牛座', month: 4, day: 20 }, { name: '双子座', month: 5, day: 21 },
@@ -50,6 +93,34 @@ const themes = {
 }
 const colors = ['苔藓绿', '珊瑚橙', '雾霾蓝', '暖杏色', '深海青', '月光白']
 const directions = ['东南', '正南', '西南', '正东', '正西', '东北']
+const astroIdBySign: Record<ZodiacSign, number> = {
+  白羊座: 1, 金牛座: 2, 双子座: 3, 巨蟹座: 4, 狮子座: 5, 处女座: 6,
+  天秤座: 7, 天蝎座: 8, 射手座: 9, 摩羯座: 10, 水瓶座: 11, 双鱼座: 12
+}
+
+const astroFortuneEndpoint = () => String(import.meta.env.VITE_FORTUNE_API_URL || '').trim()
+const astroAllEndpoint = () => String(import.meta.env.VITE_FORTUNE_ALL_API_URL || '').trim()
+const huangliEndpoint = () => String(import.meta.env.VITE_HUANGLI_API_URL || '').trim()
+
+function unwrap(raw: Record<string, unknown>) {
+  const value = raw.result || raw.data || raw
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {}
+}
+
+function readString(payload: Record<string, unknown>, keys: string[], fallback = '') {
+  for (const key of keys) {
+    const value = payload[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number') return String(value)
+  }
+  return fallback
+}
+
+function readList(payload: Record<string, unknown>, keys: string[]) {
+  const value = keys.map(key => payload[key]).find(item => Array.isArray(item) || typeof item === 'string')
+  if (Array.isArray(value)) return value.map(item => String(item)).filter(Boolean)
+  return typeof value === 'string' ? value.split(/[、,，\s]+/).map(item => item.trim()).filter(Boolean) : []
+}
 
 export function getZodiacSign(dateString: string): ZodiacSign | '待设置' {
   if (!dateString) return '待设置'
@@ -108,33 +179,108 @@ export function buildLocalFortune(profile: FortuneProfile): FortuneAnalysis {
 
 export async function fetchFortune(profile: FortuneProfile): Promise<{ analysis: FortuneAnalysis; message?: string }> {
   const local = buildLocalFortune(profile)
-  const endpoint = String(import.meta.env.VITE_FORTUNE_API_URL || '').trim()
-  if (!endpoint) return { analysis: local, message: '未配置在线接口，当前使用本地分析。' }
+  const endpoint = astroFortuneEndpoint()
+  if (!endpoint) return { analysis: local, message: '当前使用本地运势数据。' }
   try {
     const url = new URL(endpoint, window.location.origin)
-    url.searchParams.set('sign', local.sign)
-    url.searchParams.set('birthDate', profile.birthDate)
-    url.searchParams.set('birthTime', profile.birthTime)
+    if (local.sign !== '待设置') url.searchParams.set('astroid', String(astroIdBySign[local.sign]))
+    url.searchParams.set('date', new Date().toISOString().slice(0, 10))
     const response = await fetch(url)
     if (!response.ok) throw new Error(`fortune endpoint returned ${response.status}`)
     const raw = await response.json() as Record<string, unknown>
-    const payload = (raw.data || raw.result || raw) as Record<string, unknown>
-    const read = (key: string, fallback: string) => typeof payload[key] === 'string' && payload[key] ? String(payload[key]) : fallback
+    const payload = unwrap(raw)
+    const summary = readString(payload, ['today', 'summary', 'presummary', 'description'], local.summary)
     return {
       analysis: {
         ...local,
-        summary: read('summary', read('description', local.summary)),
-        love: read('love', read('love_fortune', local.love)),
-        career: read('career', read('career_fortune', local.career)),
-        wealth: read('wealth', read('money', local.wealth)),
-        health: read('health', local.health),
+        summary,
+        love: readString(payload, ['love'], local.love),
+        career: readString(payload, ['career', 'job'], local.career),
+        wealth: readString(payload, ['money', 'wealth'], local.wealth),
+        health: readString(payload, ['health'], local.health),
+        luckyColor: readString(payload, ['color'], local.luckyColor),
+        luckyNumber: Number(readString(payload, ['number'], String(local.luckyNumber))) || local.luckyNumber,
         source: 'online',
-        sourceLabel: '在线接口',
+        sourceLabel: 'JisuAPI 在线运势',
         generatedAt: new Date().toISOString()
       }
     }
   } catch {
-    return { analysis: local, message: '在线接口暂时不可用，已回退到本地分析。' }
+    return { analysis: local, message: '在线运势暂时不可用，已回退到本地分析。' }
+  }
+}
+
+export async function fetchAstroAll(): Promise<AstroSnapshot[]> {
+  const endpoint = astroAllEndpoint()
+  if (!endpoint) {
+    return signs.map((sign, index) => ({
+      astroid: astroIdBySign[sign.name], astroname: sign.name, today: themes.summary[index % themes.summary.length],
+      tomorrow: themes.summary[(index + 1) % themes.summary.length], week: themes.career[index % themes.career.length],
+      month: themes.wealth[index % themes.wealth.length], year: themes.summary[index % themes.summary.length],
+      summary: themes.summary[index % themes.summary.length], love: themes.love[index % themes.love.length],
+      career: themes.career[index % themes.career.length], money: themes.wealth[index % themes.wealth.length],
+      health: themes.health[index % themes.health.length], color: colors[index % colors.length], number: String((index % 9) + 1)
+    }))
+  }
+  const response = await fetch(new URL(endpoint, window.location.origin))
+  if (!response.ok) throw new Error(`astro all endpoint returned ${response.status}`)
+  const raw = await response.json() as Record<string, unknown>
+  const value = raw.result || raw.data || raw
+  const nested = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  const items = Array.isArray(value) ? value : (Array.isArray(nested.list) ? nested.list : Object.values(nested))
+  return items.map(item => {
+    const payload = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>
+    return {
+      astroid: Number(readString(payload, ['astroid'], '0')),
+      astroname: readString(payload, ['astroname', 'name'], '星座'),
+      today: readString(payload, ['today'], ''),
+      tomorrow: readString(payload, ['tomorrow'], ''),
+      week: readString(payload, ['week'], ''),
+      month: readString(payload, ['month'], ''),
+      year: readString(payload, ['year'], ''),
+      summary: readString(payload, ['summary', 'presummary'], ''),
+      love: readString(payload, ['love'], ''),
+      career: readString(payload, ['career', 'job'], ''),
+      money: readString(payload, ['money', 'wealth'], ''),
+      health: readString(payload, ['health'], ''),
+      color: readString(payload, ['color'], ''),
+      number: readString(payload, ['number'], '')
+    }
+  }).filter(item => item.astroname !== '星座')
+}
+
+export async function fetchHuangli(dateString: string): Promise<HuangliAnalysis> {
+  const date = new Date(`${dateString}T12:00:00`)
+  if (Number.isNaN(date.getTime())) throw new Error('invalid huangli date')
+  const endpoint = huangliEndpoint()
+  if (!endpoint) {
+    const day = date.getDate()
+    const weekday = new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }).format(date)
+    return {
+      year: String(date.getFullYear()), month: String(date.getMonth() + 1), day: String(day),
+      yangli: `${date.getFullYear()}年${date.getMonth() + 1}月${day}日`, nongli: '农历日期（本地模式）', star: '本地黄历',
+      taishen: '房床厕外正南', wuxing: ['金', '木', '水', '火', '土'][day % 5], chong: ['鼠', '牛', '虎', '兔', '龙', '蛇'][day % 6],
+      sha: ['北', '南', '东', '西'][day % 4], shengxiao: '本地推演', jiri: '平日', zhiri: ['成', '开', '定', '除'][day % 4],
+      jishenyiyi: '天德 · 月德 · 敬心', caishen: ['正东', '东南', '正南', '西南'][day % 4], xishen: '东南', fushen: '正北', suici: '本地日历',
+      yi: ['整理计划', '沟通协作', '适度运动'].slice(day % 2), ji: ['熬夜', '冲动消费'].slice(day % 2), week: weekday, emonth: 'Local Calendar', eweek: weekday
+    }
+  }
+  const url = new URL(endpoint, window.location.origin)
+  url.searchParams.set('year', String(date.getFullYear()))
+  url.searchParams.set('month', String(date.getMonth() + 1))
+  url.searchParams.set('day', String(date.getDate()))
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`huangli endpoint returned ${response.status}`)
+  const payload = unwrap(await response.json() as Record<string, unknown>)
+  return {
+    year: readString(payload, ['year']), month: readString(payload, ['month']), day: readString(payload, ['day']),
+    yangli: readString(payload, ['yangli']), nongli: readString(payload, ['nongli']), star: readString(payload, ['star']),
+    taishen: readString(payload, ['taishen']), wuxing: readString(payload, ['wuxing']), chong: readString(payload, ['chong']),
+    sha: readString(payload, ['sha']), shengxiao: readString(payload, ['shengxiao']), jiri: readString(payload, ['jiri']),
+    zhiri: readString(payload, ['zhiri']), jishenyiyi: readString(payload, ['jishenyiyi']), caishen: readString(payload, ['caishen']),
+    xishen: readString(payload, ['xishen']), fushen: readString(payload, ['fushen']), suici: readString(payload, ['suici']),
+    yi: readList(payload, ['yi', 'jishenyiyi']), ji: readList(payload, ['ji']), week: readString(payload, ['week']),
+    emonth: readString(payload, ['emonth']), eweek: readString(payload, ['eweek'])
   }
 }
 

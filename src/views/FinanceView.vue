@@ -25,7 +25,7 @@ const category = (id: string | null) => store.categories.find(x => x.id === id)
     <section class="page-intro"><div><span class="eyebrow">FINANCE</span><h2>每一笔，都算得明白</h2><p>{{ monthKey() }} · 本月结余 {{ formatMoney(store.monthIncome - store.monthExpense) }}</p></div><div class="page-actions"><button class="button secondary" @click="store.openComposer('budget')"><SlidersHorizontal :size="17" />预算</button><button class="button primary" @click="store.openComposer('transaction')"><Plus :size="17" />记一笔</button></div></section>
 
     <section class="finance-summary">
-      <article class="balance-card"><span>全部账户余额</span><strong>{{ formatMoney(totalBalance) }}</strong><small>{{ store.accounts.length }} 个账户 · 数据仅在此设备</small></article>
+      <article class="balance-card"><span>全部账户余额</span><strong>{{ formatMoney(totalBalance) }}</strong><small>{{ store.accounts.length }} 个账户 · 数据按账号隔离</small></article>
       <article class="money-stat income"><span class="metric-icon green"><ArrowDownLeft :size="19" /></span><div><small>本月收入</small><strong>{{ formatMoney(store.monthIncome) }}</strong></div></article>
       <article class="money-stat expense"><span class="metric-icon coral"><ArrowUpRight :size="19" /></span><div><small>本月支出</small><strong>{{ formatMoney(store.monthExpense) }}</strong></div></article>
     </section>

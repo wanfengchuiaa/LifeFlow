@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { BriefcaseBusiness, Compass, Heart, RefreshCw, ShieldCheck, Sparkles, WalletCards, Wind } from 'lucide-vue-next'
+import { BriefcaseBusiness, CalendarDays, Compass, Heart, RefreshCw, ShieldCheck, Sparkles, WalletCards, Wind } from 'lucide-vue-next'
 import { useLifeStore } from '@/stores/life'
-import { buildLocalFortune, fetchFortune, getYearElement, zodiacSigns, type FortuneAnalysis, type FortuneProfile } from '@/services/fortune'
+import { buildLocalFortune, fetchAstroAll, fetchFortune, fetchHuangli, zodiacSigns, type AstroSnapshot, type FortuneAnalysis, type FortuneProfile, type HuangliAnalysis } from '@/services/fortune'
 
 const store = useLifeStore()
 const profile = reactive<FortuneProfile>({ birthDate: store.settings.birthDate || '', birthTime: store.settings.birthTime || '', gender: store.settings.gender || 'unknown' })
 const analysis = ref<FortuneAnalysis>(buildLocalFortune(profile))
 const loading = ref(false)
 const message = ref('')
+const huangliDate = ref(new Date().toISOString().slice(0, 10))
+const huangli = ref<HuangliAnalysis | null>(null)
+const huangliLoading = ref(false)
+const astroAll = ref<AstroSnapshot[]>([])
 
 const profileReady = computed(() => Boolean(profile.birthDate))
 const elementCopy = computed(() => ({ 木: '生长、连接与长期主义', 火: '表达、行动与感染力', 土: '稳定、承接与兑现', 金: '边界、判断与效率', 水: '流动、直觉与适应' }[analysis.value.element]))
@@ -29,6 +33,7 @@ async function analyze() {
     const result = await fetchFortune(profile)
     analysis.value = result.analysis
     message.value = result.message || (result.analysis.source === 'online' ? '已获取在线运势。' : '')
+    void loadOnlineContext()
   } catch {
     message.value = '保存出生信息失败，当前结果仍可作为本地预览。'
     analysis.value = buildLocalFortune(profile)
@@ -36,7 +41,15 @@ async function analyze() {
     loading.value = false
   }
 }
-onMounted(() => updateLocalPreview())
+async function loadOnlineContext() {
+  huangliLoading.value = true
+  const [huangliResult, astroResult] = await Promise.allSettled([fetchHuangli(huangliDate.value), fetchAstroAll()])
+  if (huangliResult.status === 'fulfilled') huangli.value = huangliResult.value
+  if (astroResult.status === 'fulfilled') astroAll.value = astroResult.value
+  huangliLoading.value = false
+}
+function refreshHuangli() { void loadOnlineContext() }
+onMounted(() => { updateLocalPreview(); void loadOnlineContext() })
 </script>
 
 <template>
@@ -56,7 +69,7 @@ onMounted(() => updateLocalPreview())
           <button class="button primary fortune-submit" type="submit" :disabled="loading"><RefreshCw :size="16" :class="{ spin: loading }" />{{ loading ? '分析中…' : '生成今日分析' }}</button>
         </form>
         <p v-if="message" class="fortune-message" role="status">{{ message }}</p>
-        <div class="fortune-note"><ShieldCheck :size="16" /><span>出生信息只保存在当前浏览器。在线接口需由你在环境变量中配置，未配置时不会发出请求。</span></div>
+        <div class="fortune-note"><ShieldCheck :size="16" /><span>出生信息和运势偏好保存在本机 IndexedDB。当前使用本地数据，未来可通过同样的数据结构接入同步服务。</span></div>
       </article>
 
       <article class="panel compass-panel">
@@ -76,6 +89,25 @@ onMounted(() => updateLocalPreview())
 
     <section class="fortune-readings">
       <article v-for="card in readingCards" :key="card.key" class="reading-card" :class="card.color"><span class="reading-icon"><component :is="card.icon" :size="18" /></span><div><small>{{ card.label }}</small><p>{{ card.text }}</p></div></article>
+    </section>
+
+    <section class="fortune-data-grid">
+      <article class="panel huangli-panel">
+        <header class="section-heading"><div><span class="eyebrow">TRADITIONAL CALENDAR</span><h3>今日黄历</h3></div><CalendarDays :size="20" class="profile-spark" /></header>
+        <div class="huangli-toolbar"><input v-model="huangliDate" type="date" aria-label="选择黄历日期" @change="refreshHuangli" /><button class="icon-button" type="button" title="刷新黄历" aria-label="刷新黄历" :disabled="huangliLoading" @click="refreshHuangli"><RefreshCw :size="16" :class="{ spin: huangliLoading }" /></button></div>
+        <div v-if="huangli" class="huangli-content">
+          <div class="huangli-date"><strong>{{ huangli.yangli || huangliDate }}</strong><span>{{ huangli.nongli || '农历信息待返回' }} · {{ huangli.week || huangli.eweek }}</span></div>
+          <div class="huangli-facts"><span><small>宜</small><strong>{{ huangli.yi.join('、') || '接口未返回' }}</strong></span><span><small>忌</small><strong>{{ huangli.ji.join('、') || '接口未返回' }}</strong></span><span><small>冲煞</small><strong>{{ huangli.chong || '--' }} · {{ huangli.sha || '--' }}</strong></span><span><small>值日</small><strong>{{ huangli.zhiri || '--' }}</strong></span></div>
+          <div class="huangli-notes"><span>{{ huangli.jishenyiyi || '吉神宜趋待返回' }}</span><span>{{ huangli.caishen ? `财神 ${huangli.caishen}` : '财神方位待返回' }}</span></div>
+        </div>
+        <div v-else class="fortune-empty">{{ huangliLoading ? '正在读取黄历…' : '暂未获取到黄历数据' }}</div>
+      </article>
+
+      <article class="panel astro-all-panel">
+        <header class="section-heading"><div><span class="eyebrow">ALL SIGNS / TODAY</span><h3>十二星座速览</h3></div><Sparkles :size="20" class="profile-spark" /></header>
+        <div v-if="astroAll.length" class="astro-all-list"><div v-for="item in astroAll" :key="item.astroid" class="astro-all-item" :class="{ active: item.astroname.includes(analysis.sign.replace('座', '')) || item.astroname === analysis.sign }"><span class="astro-all-name">{{ item.astroname }}</span><span>{{ item.today || item.summary || '今日运势待返回' }}</span></div></div>
+        <div v-else class="fortune-empty">暂未获取到星座全览</div>
+      </article>
     </section>
 
     <p class="fortune-disclaimer"><ShieldCheck :size="15" /> 这是基于星座与简化年柱五行的娱乐性自我观察，不构成医疗、财务或人生决策建议。</p>
