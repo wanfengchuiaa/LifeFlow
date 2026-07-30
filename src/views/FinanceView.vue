@@ -12,6 +12,7 @@ const expenseCategories = computed(() => store.categories.filter(x => x.domain =
   ...category,
   amount: store.currentMonthTransactions.filter(x => x.type === 'expense' && x.categoryId === category.id).reduce((sum, x) => sum + x.amount, 0)
 })).filter(x => x.amount > 0).sort((a, b) => b.amount - a.amount))
+console.log(1);
 
 function accountBalance(id: string) {
   const account = store.accounts.find(x => x.id === id)

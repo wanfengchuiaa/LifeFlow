@@ -7,7 +7,9 @@ import { ageAt, bmi, formatDate, formatMinutes, formatMoney, percent, progressBe
 import { fetchDailyQuote, type DailyQuote } from '@/services/quote'
 
 const TrendChart = defineAsyncComponent(() => import('@/components/TrendChart.vue'))
+console.log('111');
 
+1
 const store = useLifeStore()
 const caloriePercent = computed(() => percent(store.caloriesToday, store.settings.calorieTarget))
 const taskTotal = computed(() => store.todayTasks.length + store.completedToday)
