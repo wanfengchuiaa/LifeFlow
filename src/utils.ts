@@ -36,7 +36,7 @@ export const ageAt = (birthDate: string, now = new Date()) => {
 export const bmi = (weightKg: number, heightCm: number) => heightCm > 0 ? Number((weightKg / ((heightCm / 100) ** 2)).toFixed(1)) : 0
 function newId() {
   const cryptoApi = globalThis.crypto
-  if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID()
+  // randomUUID is restricted in some HTTP and older WebView contexts.
   if (cryptoApi && typeof cryptoApi.getRandomValues === 'function') {
     const bytes = new Uint8Array(16)
     cryptoApi.getRandomValues(bytes)

@@ -6,6 +6,15 @@ The first version runs without a server. Records are stored in the browser's Ind
 
 Run the frontend with `pnpm dev`.
 
+To create the static deployment archive on Windows:
+
+```powershell
+pnpm.cmd build
+Compress-Archive -Path .\dist\* -DestinationPath .\lifeflow.zip -Force
+```
+
+The resulting archive is named `lifeflow.zip`.
+
 To try it on an iPhone without a Mac, connect the phone and computer to the same Wi-Fi, run `pnpm dev -- --host 0.0.0.0`, then open `http://<电脑局域网IP>:5173` in Safari and choose Share > Add to Home Screen.
 
 For a production build, run `pnpm build`. The generated `dist` directory can be hosted as a static PWA and wrapped with Capacitor for iOS or Android later.

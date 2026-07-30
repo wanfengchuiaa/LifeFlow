@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'com.lifeflow.app',
-  appName: 'LifeFlow',
+  appName: 'lifeflow',
   webDir: 'dist',
   backgroundColor: '#edf1ef',
   android: {
