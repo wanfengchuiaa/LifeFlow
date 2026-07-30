@@ -587,6 +587,32 @@ body { background: #f0f4f1; }
 .fortune-disclaimer { display: flex; align-items: center; gap: 6px; margin: 0; color: #87948d; font-size: 10px; }
 .fortune-disclaimer svg { flex: 0 0 auto; }
 
+/* Dashboard quote and time perspective */
+.quote-banner { position: relative; margin-bottom: 14px; padding: 24px 32px 21px; text-align: center; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+.quote-heading { display: flex; align-items: center; justify-content: center; gap: 10px; color: #58665f; font-size: 11px; }
+.quote-avatar { width: 30px; height: 30px; display: grid; place-items: center; color: #f4fff8; background: #174433; border-radius: 50%; font-size: 10px; font-weight: 800; }
+.quote-name { color: var(--ink); font-weight: 800; }
+.quote-date { padding-left: 10px; border-left: 1px solid var(--line); color: var(--muted); }
+.quote-mark { margin: 17px auto 4px; color: var(--green); }
+.quote-banner blockquote { max-width: 780px; margin: 0 auto; color: #28352f; font-family: Georgia, 'Noto Serif SC', serif; font-size: clamp(21px, 2.4vw, 31px); line-height: 1.45; }
+.quote-banner p { margin: 8px 0 0; color: #697770; font-size: 12px; }
+.quote-refresh { position: absolute; top: 17px; right: 17px; width: 32px; height: 32px; display: grid; place-items: center; color: var(--muted); background: #f3f7f4; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.quote-refresh:hover { color: var(--green-dark); background: var(--green-soft); }
+.quote-refresh:disabled { opacity: .55; cursor: wait; }
+.quote-refresh .spin { animation: spin .7s linear infinite; }
+.life-progress { margin-bottom: 14px; }
+.life-progress .section-heading { margin-bottom: 16px; }
+.life-progress-list { display: grid; gap: 15px; }
+.life-progress-item { display: grid; gap: 7px; }
+.life-progress-label { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; color: #46534c; font-size: 12px; }
+.life-progress-label span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.life-progress-label strong { flex: 0 0 auto; color: #25352d; font-size: 12px; }
+.life-progress-track { height: 15px; overflow: hidden; background: #e7ecf4; border-radius: 999px; }
+.life-progress-track span { display: block; height: 100%; min-width: 2px; border-radius: inherit; background: repeating-linear-gradient(45deg, rgba(255,255,255,.2) 0 12px, transparent 12px 24px), #55b9ee; transition: width .35s ease; }
+.life-progress-track span.coral { background: repeating-linear-gradient(45deg, rgba(255,255,255,.2) 0 12px, transparent 12px 24px), #ff5d68; }
+.life-progress-track span.yellow { background: repeating-linear-gradient(45deg, rgba(255,255,255,.2) 0 12px, transparent 12px 24px), #f5b82e; }
+.life-progress-note { margin: 15px 0 0; color: #8b9790; font-size: 10px; }
+
 @media (max-width: 920px) {
   .fortune-layout, .fortune-summary { grid-template-columns: 1fr; }
   .fortune-profile-panel, .compass-panel { min-height: auto; }
@@ -595,6 +621,11 @@ body { background: #f0f4f1; }
 }
 
 @media (max-width: 760px) {
+  .quote-banner { padding: 21px 18px 18px; }
+  .quote-banner blockquote { font-size: 21px; }
+  .quote-refresh { top: 13px; right: 13px; }
+  .life-progress { padding: 18px; }
+  .life-progress-label { font-size: 11px; }
   .fortune-hero { min-height: 184px; align-items: flex-start; flex-direction: column; padding: 22px 18px; }
   .fortune-hero h2 { font-size: 21px; }
   .fortune-source { align-self: flex-start; }
@@ -608,3 +639,14 @@ body { background: #f0f4f1; }
   .zodiac-compass { --distance: 103px; width: 258px; height: 258px; }
   .compass-core { inset: 78px; }
 }
+ .auth-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f5f7f6; }
+ .auth-card { width: min(100%, 420px); padding: 36px; background: #fff; border: 1px solid #dfe7e3; border-radius: 12px; box-shadow: 0 18px 45px rgba(24, 55, 43, .08); }
+ .auth-brand { display: flex; align-items: center; gap: 10px; color: #1e9b68; font-size: 22px; margin-bottom: 34px; }
+ .auth-card h1 { margin: 4px 0 10px; color: #20342a; font-size: 28px; }
+ .auth-copy { color: #718178; margin: 0 0 26px; }
+ .auth-card form { display: grid; gap: 16px; }
+ .auth-submit { width: 100%; justify-content: center; margin-top: 4px; }
+ .member-list { display: grid; gap: 8px; margin-top: 18px; }
+ .member-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; }
+ .member-row span { display: grid; gap: 3px; font-weight: 600; }
+ .member-row small { color: var(--muted); font-weight: 400; font-size: 11px; }

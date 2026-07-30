@@ -22,5 +22,6 @@ export default defineConfig({
       workbox: { navigateFallback: '/index.html' }
     })
   ],
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } }
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  server: { proxy: { '/api': 'http://localhost:8080' } }
 })

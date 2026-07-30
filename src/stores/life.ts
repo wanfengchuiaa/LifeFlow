@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { db, ensureSeeded, exportBackup, importBackup, readAll, seedStarter } from '@/db'
+import { api, ApiError } from '@/services/api'
 import type { Account, AppSettings, BodyMetric, Budget, Category, ComposerKind, FoodPreset, MealEntry, ScheduleEvent, Task, TimeEntry, Transaction } from '@/types'
 import { addRecurrence, localDateKey, monthKey, newBase, nowIso } from '@/utils'
 
@@ -8,6 +8,8 @@ type ComposerSeed = Record<string, string | number | null>
 
 export const useLifeStore = defineStore('life', () => {
   const ready = ref(false)
+  const authenticated = ref(false)
+  const user = ref<{ id: string; username: string; role: string } | null>(null)
   const composerKind = ref<ComposerKind | null>(null)
   const composerSeed = ref<ComposerSeed>({})
   const settings = ref<AppSettings>({ key: 'profile', calorieTarget: 2000, targetWeightKg: 65, currency: 'CNY', weekStartsOn: 1, timezone: 'Asia/Shanghai', seeded: true, birthDate: '', birthTime: '', gender: 'unknown' })
@@ -37,24 +39,23 @@ export const useLifeStore = defineStore('life', () => {
   const monthBudget = computed(() => budgets.value.find(x => x.month === monthKey() && !x.categoryId)?.amount || 0)
 
   async function init() {
-    await ensureSeeded(true)
-    await refresh()
-    ready.value = true
+    try { user.value = await api.me(); authenticated.value = true; await refresh(); ready.value = true }
+    catch (error) { if (!(error instanceof ApiError && error.status === 401)) console.error(error); ready.value = true }
   }
 
   async function refresh() {
-    const data = await readAll()
-    settings.value = data.settings[0] || settings.value
-    categories.value = data.categories
-    foodPresets.value = data.foodPresets
-    mealEntries.value = data.mealEntries
-    bodyMetrics.value = data.bodyMetrics
-    tasks.value = data.tasks
-    scheduleEvents.value = data.scheduleEvents
-    timeEntries.value = data.timeEntries
-    accounts.value = data.accounts
-    transactions.value = data.transactions
-    budgets.value = data.budgets
+    const data = await api.data() as Record<string, any[]>
+    settings.value = data.settings?.[0] ? { ...settings.value, ...data.settings[0] } : settings.value
+    categories.value = (data.categories || []) as Category[]
+    foodPresets.value = (data.foodPresets || []) as FoodPreset[]
+    mealEntries.value = (data.mealEntries || []) as MealEntry[]
+    bodyMetrics.value = (data.bodyMetrics || []) as BodyMetric[]
+    tasks.value = (data.tasks || []) as Task[]
+    scheduleEvents.value = (data.scheduleEvents || []) as ScheduleEvent[]
+    timeEntries.value = (data.timeEntries || []) as TimeEntry[]
+    accounts.value = (data.accounts || []) as Account[]
+    transactions.value = (data.transactions || []) as Transaction[]
+    budgets.value = (data.budgets || []) as Budget[]
   }
 
   function openComposer(kind: ComposerKind, seed: ComposerSeed = {}) {
@@ -64,37 +65,37 @@ export const useLifeStore = defineStore('life', () => {
   function closeComposer() { composerKind.value = null; composerSeed.value = {} }
 
   async function addMeal(input: Omit<MealEntry, keyof ReturnType<typeof newBase>>) {
-    await db.mealEntries.add({ ...newBase(), ...input })
+    await api.create('mealEntries', input)
     await refresh()
   }
   async function addFoodPreset(input: Pick<FoodPreset, 'name' | 'portion' | 'unit' | 'calories'>) {
-    await db.foodPresets.add({ ...newBase(), ...input })
+    await api.create('foodPresets', input)
     await refresh()
   }
-  async function addBody(input: Omit<BodyMetric, keyof ReturnType<typeof newBase>>) { await db.bodyMetrics.add({ ...newBase(), ...input }); await refresh() }
-  async function addTask(input: Omit<Task, keyof ReturnType<typeof newBase>>) { await db.tasks.add({ ...newBase(), ...input }); await refresh() }
-  async function addEvent(input: Omit<ScheduleEvent, keyof ReturnType<typeof newBase>>) { await db.scheduleEvents.add({ ...newBase(), ...input }); await refresh() }
-  async function addTime(input: Omit<TimeEntry, keyof ReturnType<typeof newBase>>) { await db.timeEntries.add({ ...newBase(), ...input }); await refresh() }
-  async function addAccount(input: Omit<Account, keyof ReturnType<typeof newBase>>) { await db.accounts.add({ ...newBase(), ...input }); await refresh() }
-  async function addTransaction(input: Omit<Transaction, keyof ReturnType<typeof newBase>>) { await db.transactions.add({ ...newBase(), ...input }); await refresh() }
+  async function addBody(input: Omit<BodyMetric, keyof ReturnType<typeof newBase>>) { await api.create('bodyMetrics', input); await refresh() }
+  async function addTask(input: Omit<Task, keyof ReturnType<typeof newBase>>) { await api.create('tasks', input); await refresh() }
+  async function addEvent(input: Omit<ScheduleEvent, keyof ReturnType<typeof newBase>>) { await api.create('scheduleEvents', input); await refresh() }
+  async function addTime(input: Omit<TimeEntry, keyof ReturnType<typeof newBase>>) { await api.create('timeEntries', input); await refresh() }
+  async function addAccount(input: Omit<Account, keyof ReturnType<typeof newBase>>) { await api.create('accounts', input); await refresh() }
+  async function addTransaction(input: Omit<Transaction, keyof ReturnType<typeof newBase>>) { await api.create('transactions', input); await refresh() }
   async function addBudget(input: Omit<Budget, keyof ReturnType<typeof newBase>>) {
     const current = budgets.value.find(x => x.month === input.month && x.categoryId === input.categoryId)
-    if (current) await db.budgets.update(current.id, { amount: input.amount, updatedAt: nowIso() })
-    else await db.budgets.add({ ...newBase(), ...input })
+    if (current) await api.update('budgets', current.id, { ...current, amount: input.amount })
+    else await api.create('budgets', input)
     await refresh()
   }
 
   async function toggleTask(task: Task) {
     const completing = task.status === 'todo'
-    await db.tasks.update(task.id, { status: completing ? 'done' : 'todo', completedAt: completing ? nowIso() : null, updatedAt: nowIso() })
+    await api.update('tasks', task.id, { ...task, status: completing ? 'done' : 'todo', completedAt: completing ? nowIso() : null })
     if (completing && task.recurrence !== 'none' && task.dueAt) {
-      await db.tasks.add({ ...task, ...newBase(), dueAt: addRecurrence(task.dueAt, task.recurrence), status: 'todo', completedAt: null })
+      await api.create('tasks', { ...task, dueAt: addRecurrence(task.dueAt, task.recurrence), status: 'todo', completedAt: null })
     }
     await refresh()
   }
 
   async function remove(table: 'mealEntries' | 'bodyMetrics' | 'tasks' | 'scheduleEvents' | 'timeEntries' | 'transactions', id: string) {
-    await db[table].update(id, { deletedAt: nowIso(), updatedAt: nowIso() })
+    await api.remove(table, id)
     await refresh()
   }
 
@@ -105,17 +106,17 @@ export const useLifeStore = defineStore('life', () => {
   async function stopTimer() {
     if (!activeTimer.value) return
     const endAt = nowIso()
-    await db.timeEntries.update(activeTimer.value.id, { endAt, durationMinutes: elapsedMinutes(activeTimer.value.startAt, endAt), updatedAt: endAt })
+    await api.update('timeEntries', activeTimer.value.id, { ...activeTimer.value, endAt, durationMinutes: elapsedMinutes(activeTimer.value.startAt, endAt) })
     await refresh()
   }
 
   async function updateSettings(patch: Partial<AppSettings>) {
     settings.value = { ...settings.value, ...patch }
-    await db.settings.put(settings.value)
+    await api.updateSettings({ ...settings.value, ...patch })
   }
 
   async function downloadBackup() {
-    const backup = await exportBackup()
+    const backup = { formatVersion: 1, exportedAt: nowIso(), appVersion: '1.0.0', data: { settings: [settings.value], categories: categories.value, foodPresets: foodPresets.value, mealEntries: mealEntries.value, bodyMetrics: bodyMetrics.value, tasks: tasks.value, scheduleEvents: scheduleEvents.value, timeEntries: timeEntries.value, accounts: accounts.value, transactions: transactions.value, budgets: budgets.value } }
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
@@ -124,14 +125,16 @@ export const useLifeStore = defineStore('life', () => {
     anchor.click()
     URL.revokeObjectURL(url)
   }
-  async function restoreBackup(raw: unknown) { await importBackup(raw); await refresh() }
-  async function reset(sample = false) { await seedStarter(sample); await refresh() }
+  async function restoreBackup(raw: unknown) { await api.restore(raw); await refresh() }
+  async function reset(sample = false) { await api.reset(sample); await refresh() }
+  async function login(username: string, password: string) { user.value = await api.login(username, password); authenticated.value = true; await refresh() }
+  async function logout() { await api.logout(); user.value = null; authenticated.value = false; ready.value = true }
 
   return {
-    ready, settings, categories, foodPresets, mealEntries, bodyMetrics, tasks, scheduleEvents, timeEntries, accounts, transactions, budgets,
+    ready, authenticated, user, settings, categories, foodPresets, mealEntries, bodyMetrics, tasks, scheduleEvents, timeEntries, accounts, transactions, budgets,
     composerKind, composerSeed, todayMeals, caloriesToday, latestBody, todayTasks, completedToday, todayEvents, todayTime, activeTimer,
     currentMonthTransactions, monthExpense, monthIncome, monthBudget,
-    init, refresh, openComposer, closeComposer, addMeal, addFoodPreset, addBody, addTask, addEvent, addTime, addAccount, addTransaction, addBudget,
+    init, login, logout, refresh, openComposer, closeComposer, addMeal, addFoodPreset, addBody, addTask, addEvent, addTime, addAccount, addTransaction, addBudget,
     toggleTask, remove, startTimer, stopTimer, updateSettings, downloadBackup, restoreBackup, reset
   }
 })

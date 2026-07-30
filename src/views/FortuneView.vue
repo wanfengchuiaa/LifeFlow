@@ -24,11 +24,17 @@ function updateLocalPreview() { analysis.value = buildLocalFortune(profile) }
 async function analyze() {
   loading.value = true
   message.value = ''
-  await store.updateSettings({ birthDate: profile.birthDate, birthTime: profile.birthTime, gender: profile.gender })
-  const result = await fetchFortune(profile)
-  analysis.value = result.analysis
-  message.value = result.message || (result.analysis.source === 'online' ? '已获取在线运势。' : '')
-  loading.value = false
+  try {
+    await store.updateSettings({ birthDate: profile.birthDate, birthTime: profile.birthTime, gender: profile.gender })
+    const result = await fetchFortune(profile)
+    analysis.value = result.analysis
+    message.value = result.message || (result.analysis.source === 'online' ? '已获取在线运势。' : '')
+  } catch {
+    message.value = '保存出生信息失败，当前结果仍可作为本地预览。'
+    analysis.value = buildLocalFortune(profile)
+  } finally {
+    loading.value = false
+  }
 }
 onMounted(() => updateLocalPreview())
 </script>

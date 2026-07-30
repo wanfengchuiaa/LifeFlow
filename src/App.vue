@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { Activity, CalendarDays, CheckSquare2, CircleDollarSign, CloudOff, HeartPulse, Home, Plus, Settings, Utensils, Weight, X, ReceiptText, Timer, CalendarPlus, Sparkles } from 'lucide-vue-next'
 import { useLifeStore } from '@/stores/life'
 import QuickAddModal from '@/components/QuickAddModal.vue'
+import LoginView from '@/components/LoginView.vue'
 
 const store = useLifeStore()
 const route = useRoute()
@@ -40,6 +41,11 @@ function openQuick(kind: typeof quickItems[number]['kind']) {
   quickOpen.value = false
   store.openComposer(kind)
 }
+function onLoggedIn(user: { id: string; username: string; role: string }) {
+  store.user = user
+  store.authenticated = true
+  store.refresh()
+}
 
 onMounted(() => {
   store.init()
@@ -55,7 +61,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-shell">
+  <!-- <LoginView v-if="!store.authenticated" @logged-in="onLoggedIn" /> -->
+  <div  class="app-shell">
     <aside class="sidebar">
       <RouterLink class="brand" to="/" aria-label="LifeFlow 首页">
         <span class="brand-mark"><Activity :size="22" /></span>
@@ -70,7 +77,7 @@ onBeforeUnmount(() => {
       </nav>
       <div class="side-bottom">
         <RouterLink to="/settings"><Settings :size="20" /><span>设置与数据</span></RouterLink>
-        <div class="local-badge"><span class="status-dot"></span>数据仅保存在此设备</div>
+        <div class="local-badge"><span class="status-dot"></span>数据已同步到服务器</div>
       </div>
     </aside>
 
