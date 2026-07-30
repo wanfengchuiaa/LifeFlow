@@ -34,7 +34,21 @@ export const ageAt = (birthDate: string, now = new Date()) => {
   return Math.max(0, age)
 }
 export const bmi = (weightKg: number, heightCm: number) => heightCm > 0 ? Number((weightKg / ((heightCm / 100) ** 2)).toFixed(1)) : 0
-export const newBase = (): BaseRecord => ({ id: crypto.randomUUID(), createdAt: nowIso(), updatedAt: nowIso(), deletedAt: null })
+function newId() {
+  const cryptoApi = globalThis.crypto
+  if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID()
+  if (cryptoApi && typeof cryptoApi.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16)
+    cryptoApi.getRandomValues(bytes)
+    bytes[6] = (bytes[6] & 0x0f) | 0x40
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+    const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
+}
+
+export const newBase = (): BaseRecord => ({ id: newId(), createdAt: nowIso(), updatedAt: nowIso(), deletedAt: null })
 export const addRecurrence = (iso: string, recurrence: 'daily' | 'weekly' | 'monthly') => {
   const date = new Date(iso)
   if (recurrence === 'daily') date.setDate(date.getDate() + 1)
